@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { type MenuConfig } from './types';
 import { translateMenuItems } from '@/lib/menu-translation-utils';
+import { FLEET_READ_PERMISSION } from '@/lib/fleet/access';
 
 /**
  * Fleet's own sidebar. It REPLACES the estate sidebar the template ships:
@@ -62,8 +63,10 @@ import { translateMenuItems } from '@/lib/menu-translation-utils';
  * Titles come from the zone's own 'fleet' i18n namespace (see
  * buildMenuSidebarFleet), not from the estate-wide MENU_TRANSLATION_KEYS map.
  *
- * No permission gate yet: the Fleet read permission does not exist in Auth,
- * and a gate naming a permission nobody holds would hide the menu from everyone.
+ * Every entry, the heading included, requires the Fleet read permission, the
+ * same single rule the route group's access gate applies. The menu never
+ * advertises a screen the gate would refuse; a caller without the permission
+ * sees no Fleet section at all.
  */
 const FLEET_MENU = [
   { key: 'orgChart', title: 'Organization Chart', path: '/fleet', icon: Network },
@@ -81,11 +84,12 @@ function tr(t: (key: string) => string, key: string, fallback: string): string {
 
 function buildMenuSidebarFleet(t: (key: string) => string): MenuConfig {
   return [
-    { heading: tr(t, 'heading', 'Fleet') },
+    { heading: tr(t, 'heading', 'Fleet'), permissions: [FLEET_READ_PERMISSION] },
     ...FLEET_MENU.map((item) => ({
       title: tr(t, item.key, item.title),
       path: item.path,
       icon: item.icon,
+      permissions: [FLEET_READ_PERMISSION],
     })),
   ];
 }

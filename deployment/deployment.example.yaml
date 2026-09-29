@@ -1,0 +1,232 @@
+# =============================================================================
+#  KSS Client Web - fleet domain app (multi-zone)
+# =============================================================================
+#  Modelled on the dms zone's deployment manifest. Every identifier below is
+#  derived from this zone's own values (folder "Fleet", slug "fleet", basePath
+#  "/fleet"), not adapted by search-and-replace from another zone's file.
+#
+#  WHAT THIS ZONE IS: frontend with synthetic mock data only. It has NO backend
+#  service and NO data store; it calls nothing but the Shell's session.
+#
+#  ---------------------------------------------------------------------------
+#  1. NO INGRESS.
+#
+#  /fleet is reached only through the Shell, the estate's single public
+#  entrypoint. No Ingress object and no ingress host are set in this file.
+#
+#  ---------------------------------------------------------------------------
+#  2. ACCESS IS GATED IN THE APP, ON ONE PERMISSION.
+#
+#  Every screen sits in the app/(fleet) route group behind FleetAccessGate,
+#  which renders the screens only when the session carries the Fleet read
+#  permission (lib/fleet/access.ts). There is no role bypass. The health route
+#  (app/api/health) is outside that group, so the probes below answer without a
+#  session - they must, or a healthy pod would never become Ready.
+#
+#  ---------------------------------------------------------------------------
+#  THREE THINGS ARE NOT IN THIS FILE, AND ALL THREE EXIST IN THE CLUSTER ALREADY:
+#
+#   A. The namespace's docker-secret (image pull). Secrets are
+#      namespace-scoped; without it pods sit in ImagePullBackOff.
+#
+#   B. The Secret kss-client-web-fleet-secrets, holding nextauth-secret ONLY.
+#      It is deliberately not declared here: a checked-in Secret would be
+#      re-blanked by every `kubectl apply`. See the note at NEXTAUTH_SECRET.
+#
+#   C. A NetworkPolicy. The dms file carries one that is marked do-not-apply
+#      (its egress list omits DNS). It is NOT copied: an object known to break
+#      name resolution does not belong in a file that is applied whole.
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kss-client-web-fleet
+  labels:
+    name: kss-client-web-fleet
+    app: kss-client-web-fleet
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kss-client-web-fleet
+  namespace: kss-client-web-fleet
+  labels:
+    app: kss-client-web-fleet
+    version: v1.0.0
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: "true"
+    keel.sh/trigger: poll
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: kss-client-web-fleet
+  template:
+    metadata:
+      labels:
+        app: kss-client-web-fleet
+        version: v1.0.0
+    spec:
+      imagePullSecrets:
+      - name: docker-secret
+      containers:
+      - name: kss-client-web-fleet
+        image: docker-hosted.sebaoffice.ir/kss-client-web-fleet:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: HOSTNAME
+          value: "0.0.0.0"
+        - name: TZ
+          value: "UTC"
+
+        # The session cookie carries every permission claim and overflows Node's
+        # default 16 KB header buffer; this zone receives that same cookie.
+        - name: NODE_OPTIONS
+          value: "--max-http-header-size=131072"
+
+        # -- Auth -------------------------------------------------------------
+        # MUST BE BYTE-IDENTICAL TO THE SHELL'S, or the session cookie the Shell
+        # issued cannot be decrypted and every visitor is treated as signed out.
+        # Absent + non-optional fails loudly (CreateContainerConfigError); an
+        # EMPTY value would start the pod and fail every request instead.
+        - name: NEXTAUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: kss-client-web-fleet-secrets
+              key: nextauth-secret
+
+        # The public origin. Cookies are scoped by host and path, never by port
+        # or by which pod answered, so this stays the Shell's URL.
+        - name: NEXTAUTH_URL
+          value: "https://erp.seba.ir"
+
+        # Used only by the DEV-ONLY /api/auth rewrite in next.config.mjs; inert
+        # in cluster, set for parity and for a local `docker run`.
+        - name: SHELL_URL
+          value: "https://erp.seba.ir"
+
+        # -- Application ------------------------------------------------------
+        # Inlined at BUILD time by the Dockerfile ARG (default "/fleet"). Set at
+        # runtime too so a mismatch shows in `kubectl describe`. It must equal
+        # next.config.mjs's basePath.
+        - name: NEXT_PUBLIC_BASE_PATH
+          value: "/fleet"
+        - name: NEXT_PUBLIC_APP_NAME
+          value: "KSS_Client_Web_fleet"
+
+        # -- Tenant branding --------------------------------------------------
+        # Read by lib/tenants.ts. The ConfigMap value is copied programmatically
+        # from the dms zone's manifest, not transcribed. configMapKeyRef is
+        # frozen at container start: a ConfigMap change needs a rollout restart.
+        - name: TENANTS
+          valueFrom:
+            configMapKeyRef:
+              name: kss-client-web-fleet-config
+              key: tenants
+
+        # -- Backend services -------------------------------------------------
+        # ONE: Auth, because the shared services/auth-api.ts reads it. The zone
+        # has no service of its own and calls nothing else.
+        - name: AUTH_API_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kss-client-web-fleet-config
+              key: auth-api-base-url
+
+        # No object-storage variables: nothing in this app uploads, and the
+        # zone's Secret holds nextauth-secret only.
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        # -- Probes -----------------------------------------------------------
+        # app/api/health/route.ts, served under the basePath. timeoutSeconds is
+        # explicit on all three; the default is 1s and a cold start exceeds it.
+        livenessProbe:
+          httpGet: { path: /fleet/api/health, port: 3000, scheme: HTTP }
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet: { path: /fleet/api/health, port: 3000, scheme: HTTP }
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet: { path: /fleet/api/health, port: 3000, scheme: HTTP }
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 24
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: [ALL]
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kss-client-web-fleet-service
+  namespace: kss-client-web-fleet
+  labels:
+    app: kss-client-web-fleet
+spec:
+  selector:
+    app: kss-client-web-fleet
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None
+---
+# auth-api-base-url and tenants are copied from the dms zone's manifest, which
+# copies them from the Shell's, so the zones cannot drift from each other.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kss-client-web-fleet-config
+  namespace: kss-client-web-fleet
+data:
+  auth-api-base-url: "https://auth.api.sebaoffice.ir"
+  tenants: '{"erp.seba.ir":{"name":"SEBA","logo":"/media/app/default-logo.svg","logoDark":"/media/app/default-logo-dark.svg","logoMini":"/media/app/mini-logo.svg","favicon":"/favicon.ico","banner":"/media/images/2600x1600/1.png","bannerDark":"/media/images/2600x1600/1-dark.png","companyId":"019f317a-12ba-764f-b19b-e064e36b4be8","footer":{"brand":{"label":"SEBA","href":"https://seba.ir"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"Support","fa":"پشتیبانی","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"License","fa":"مجوز","href":""}]}},"members.sebaoffice.ir":{"name":"SEBA","logo":"/media/app/default-logo.svg","logoDark":"/media/app/default-logo-dark.svg","logoMini":"/media/app/mini-logo.svg","favicon":"/favicon.ico","banner":"/media/images/2600x1600/1.png","bannerDark":"/media/images/2600x1600/1-dark.png","companyId":"019f317a-12ba-764f-b19b-e064e36b4be8","footer":{"brand":{"label":"SEBA","href":"https://seba.ir"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"Support","fa":"پشتیبانی","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"License","fa":"مجوز","href":""}]}},"nerp.sajoffice.ir":{"name":"SAJ","logo":"/media/tenants/saj/logo.png","logoDark":"/media/tenants/saj/logo.png","logoMini":"/media/tenants/saj/logo.png","favicon":"/media/tenants/saj/favicon.png","banner":"/media/tenants/saj/banner.jpg","bannerDark":"/media/tenants/saj/banner.jpg","companyId":"019f0e6c-9fbc-78cf-9202-fa932a9878f7","footer":{"brand":{"label":"SAJ","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"erp.mpfoffice.ir":{"name":"MPF","logo":"/media/tenants/mpf/logo.svg","logoDark":"/media/tenants/mpf/logo-dark.svg","logoMini":"/media/tenants/mpf/logo-mini.svg","favicon":"/media/tenants/mpf/favicon.svg","banner":"/media/tenants/mpf/banner.svg","bannerDark":"/media/tenants/mpf/banner-dark.svg","companyId":"019f7a3e-1d43-7bcb-a7f3-eb97572e2e02","footer":{"brand":{"label":"MPF","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"spmoffice.ir":{"name":"SPM","logo":"/media/tenants/spm/logo.svg","logoDark":"/media/tenants/spm/logo-dark.svg","logoMini":"/media/tenants/spm/logo-mini.svg","favicon":"/media/tenants/spm/favicon.svg","banner":"/media/tenants/spm/banner.svg","bannerDark":"/media/tenants/spm/banner-dark.svg","companyId":"01a04744-68ae-7aef-b9d0-b5fb31d7a80c","footer":{"brand":{"label":"SPM","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"mkoffice.ir":{"name":"MK","footer":{"brand":{"label":"مشیران کاریز","href":"https://moshirankariz.com"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]},"logo":"/media/tenants/mk/logo.png","logoDark":"/media/tenants/mk/logo.png","logoMini":"/media/tenants/mk/logo.png","favicon":"/media/tenants/mk/favicon.ico","banner":"/media/tenants/mk/banner.jpg","bannerDark":"/media/tenants/mk/banner.jpg","companyId":"01a07fb0-e2e7-7822-b14b-3a70278009ef"}}'
+---
+# minAvailable 1 against replicas 2. It must stay strictly below replicas or a
+# node drain deadlocks.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kss-client-web-fleet-pdb
+  namespace: kss-client-web-fleet
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: kss-client-web-fleet

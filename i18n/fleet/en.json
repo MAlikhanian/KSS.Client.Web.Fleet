@@ -1,4 +1,8 @@
 {
+  "access": {
+    "deniedTitle": "You do not have access to Fleet.",
+    "deniedBody": "Access requires the Fleet read permission. Ask your administrator to grant it."
+  },
   "menu": {
     "heading": "Fleet",
     "orgChart": "Organization Chart",
