@@ -25,6 +25,9 @@ export const metadata: Metadata = {
     template: '%s | Fleet',
     default: 'Fleet',
   },
+  // A signed-in application: never indexed. middleware.ts also sends the same
+  // rule as an X-Robots-Tag header on every response it handles.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

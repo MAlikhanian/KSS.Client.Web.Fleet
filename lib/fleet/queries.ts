@@ -1,106 +1,79 @@
-import {
-  AGENT_DAYS,
-  AGENTS,
-  CAPACITY,
-  DEPARTMENTS,
-  MOCK_DAYS,
-  PROJECTS,
-  RELEASES,
-  ROLES,
-} from './mock-data';
-import type { Agent, AgentDay } from './types';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import type { ActivityResponse, OrgResponse, PresenceResponse } from './web-contract';
 
 /**
- * The only way the screens read Fleet data. Stage 3 swaps these bodies for
- * service calls and the screens do not change.
+ * The ONLY place the screens read Fleet data from.
+ *
+ * Every call goes to this zone's own server routes (/fleet/api/fleet/*), which
+ * check the session, call the Fleet service and return only contract fields.
+ * The browser never calls the Fleet service and never holds its token.
  */
 
-export interface AgentFilter {
-  departmentId?: number | null;
-  projectId?: number | null;
-  /** 'active' | 'inactive' | 'all' */
-  status?: 'active' | 'inactive' | 'all';
-}
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
-export const listDepartments = () => DEPARTMENTS;
-export const listRoles = () => ROLES;
-export const listProjects = () => PROJECTS;
-export const listDays = () => MOCK_DAYS;
-export const listCapacity = () => CAPACITY;
-export const listReleases = () => RELEASES;
-
-export const listAgents = (): Agent[] => AGENTS;
-
-export const departmentName = (id: number | null | undefined) =>
-  DEPARTMENTS.find((d) => d.id === id)?.name ?? '';
-export const roleName = (id: number | null | undefined) =>
-  ROLES.find((r) => r.id === id)?.name ?? '';
-export const projectName = (id: number | null | undefined) =>
-  PROJECTS.find((p) => p.id === id)?.name ?? '';
-
-export const fullName = (a: Pick<Agent, 'firstName' | 'lastName'>) =>
-  `${a.firstName} ${a.lastName}`;
-
-export function matchesFilter(agent: Agent, f: AgentFilter): boolean {
-  if (f.departmentId && agent.departmentId !== f.departmentId) return false;
-  if (f.projectId && agent.projectId !== f.projectId) return false;
-  if (f.status === 'active' && !agent.isActive) return false;
-  if (f.status === 'inactive' && agent.isActive) return false;
-  return true;
-}
-
-export function filterAgents(f: AgentFilter): Agent[] {
-  return AGENTS.filter((a) => matchesFilter(a, f));
-}
-
-export interface OrgNode {
-  agent: Agent;
-  children: OrgNode[];
-}
-
-/**
- * The ReportsTo hierarchy as a forest. An agent whose manager is missing from
- * the list is treated as a top, so a broken link never hides an agent.
- */
-export function buildOrgForest(agents: Agent[] = AGENTS): OrgNode[] {
-  const byId = new Map(agents.map((a) => [a.agentId, { agent: a, children: [] as OrgNode[] }]));
-  const roots: OrgNode[] = [];
-  for (const node of Array.from(byId.values())) {
-    const parentId = node.agent.reportsToAgentId;
-    const parent = parentId ? byId.get(parentId) : undefined;
-    if (parent) parent.children.push(node);
-    else roots.push(node);
+/** A failed Fleet request, carrying the service's own FLEET_ code. */
+export class FleetApiError extends Error {
+  readonly code: string;
+  readonly status: number;
+  constructor(code: string, status: number) {
+    super(code);
+    this.code = code;
+    this.status = status;
   }
-  const sort = (nodes: OrgNode[]) => {
-    nodes.sort((a, b) => a.agent.roleId - b.agent.roleId || fullName(a.agent).localeCompare(fullName(b.agent)));
-    nodes.forEach((n) => sort(n.children));
-  };
-  sort(roots);
-  return roots;
 }
 
-export function agentDays(f: AgentFilter = {}): AgentDay[] {
-  const ids = new Set(filterAgents(f).map((a) => a.agentId));
-  return AGENT_DAYS.filter((d) => ids.has(d.agentId));
+async function getJson<T>(path: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/fleet/${path}`, { cache: 'no-store', credentials: 'same-origin' });
+  } catch {
+    throw new FleetApiError('FLEET_NETWORK', 0);
+  }
+  if (!res.ok) {
+    let code = `FLEET_HTTP_${res.status}`;
+    try {
+      const body = (await res.json()) as { code?: unknown };
+      if (typeof body?.code === 'string') code = body.code;
+    } catch {
+      /* no JSON body */
+    }
+    throw new FleetApiError(code, res.status);
+  }
+  return (await res.json()) as T;
 }
 
-export function sumBy<T>(rows: T[], pick: (r: T) => number): number {
-  return rows.reduce((acc, r) => acc + pick(r), 0);
+export function useOrg() {
+  return useQuery({
+    queryKey: ['fleet', 'org'],
+    queryFn: () => getJson<OrgResponse>('org'),
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
-/** Rows grouped by day, in calendar order, with every day present. */
-export function byDay<R>(rows: AgentDay[], reduce: (rows: AgentDay[]) => R): Array<{ day: string } & R> {
-  return MOCK_DAYS.map((day) => ({ day, ...reduce(rows.filter((r) => r.day === day)) }));
+export function usePresence() {
+  return useQuery({
+    queryKey: ['fleet', 'presence'],
+    queryFn: () => getJson<PresenceResponse>('presence'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: false,
+  });
 }
 
-/** Rows grouped by agent, for the agents passed in. */
-export function byAgent<R>(agents: Agent[], rows: AgentDay[], reduce: (rows: AgentDay[]) => R): Array<{ agent: Agent } & R> {
-  return agents.map((agent) => ({ agent, ...reduce(rows.filter((r) => r.agentId === agent.agentId)) }));
+export function useActivity(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: ['fleet', 'activity', from, to],
+    queryFn: () => getJson<ActivityResponse>(`activity?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+    enabled: enabled && Boolean(from && to),
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
-export const totalTokens = (d: AgentDay) =>
-  d.tokens.input + d.tokens.output + d.tokens.cacheWrite + d.tokens.cacheRead;
-export const totalMessages = (d: AgentDay) =>
-  d.messages.inbound + d.messages.outbound + d.messages.internal + d.messages.other;
-export const totalToolCalls = (d: AgentDay) =>
-  d.toolCalls.read + d.toolCalls.edit + d.toolCalls.search + d.toolCalls.shell + d.toolCalls.other;
+/** The code to show for a failed query. */
+export function errorCode(error: unknown): string {
+  return error instanceof FleetApiError ? error.code : 'FLEET_CLIENT_ERROR';
+}

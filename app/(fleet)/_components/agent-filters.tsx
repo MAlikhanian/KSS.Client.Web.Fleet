@@ -7,22 +7,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { listDepartments, listProjects, type AgentFilter } from '@/lib/fleet/queries';
+import type { AgentFilter } from '@/lib/fleet/org';
+import type { Lookup } from '@/lib/fleet/web-contract';
 import { useFleet } from './use-fleet';
 
 const ALL = 'all';
 
-/** Department / project / status filters, shared by every Fleet screen. */
+/** Department / project / status filters over the org data from the service. */
 export function AgentFilters({
   value,
   onChange,
+  departments,
+  projects,
   showStatus = true,
 }: {
   value: AgentFilter;
   onChange: (next: AgentFilter) => void;
+  departments: Lookup[];
+  projects: Lookup[];
   showStatus?: boolean;
 }) {
-  const { t, dept, project } = useFleet();
+  const { t } = useFleet();
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
@@ -30,14 +35,14 @@ export function AgentFilters({
         value={value.departmentId ? String(value.departmentId) : ALL}
         onValueChange={(v) => onChange({ ...value, departmentId: v === ALL ? null : Number(v) })}
       >
-        <SelectTrigger className="w-44" aria-label={t('common.department')}>
+        <SelectTrigger className="w-48" aria-label={t('common.department')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t('common.allDepartments')}</SelectItem>
-          {listDepartments().map((d) => (
+          {departments.map((d) => (
             <SelectItem key={d.id} value={String(d.id)}>
-              {dept(d.id, d.name)}
+              {d.name}
             </SelectItem>
           ))}
         </SelectContent>
@@ -47,14 +52,14 @@ export function AgentFilters({
         value={value.projectId ? String(value.projectId) : ALL}
         onValueChange={(v) => onChange({ ...value, projectId: v === ALL ? null : Number(v) })}
       >
-        <SelectTrigger className="w-44" aria-label={t('common.project')}>
+        <SelectTrigger className="w-48" aria-label={t('common.project')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t('common.allProjects')}</SelectItem>
-          {listProjects().map((p) => (
+          {projects.map((p) => (
             <SelectItem key={p.id} value={String(p.id)}>
-              {project(p.id)}
+              {p.name}
             </SelectItem>
           ))}
         </SelectContent>

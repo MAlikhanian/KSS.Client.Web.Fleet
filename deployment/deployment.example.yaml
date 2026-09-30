@@ -5,8 +5,10 @@
 #  derived from this zone's own values (folder "Fleet", slug "fleet", basePath
 #  "/fleet"), not adapted by search-and-replace from another zone's file.
 #
-#  WHAT THIS ZONE IS: frontend with synthetic mock data only. It has NO backend
-#  service and NO data store; it calls nothing but the Shell's session.
+#  WHAT THIS ZONE IS: the signed-in Fleet screens. Its data comes from the Fleet
+#  service through the zone's OWN server routes (app/api/fleet/*), which call
+#  FLEET_API_BASE_URL with the signed-in person's token. The browser never
+#  calls the Fleet service. The zone holds no data store.
 #
 #  ---------------------------------------------------------------------------
 #  1. NO INGRESS.
@@ -15,25 +17,28 @@
 #  entrypoint. No Ingress object and no ingress host are set in this file.
 #
 #  ---------------------------------------------------------------------------
-#  2. ACCESS IS GATED IN THE APP, ON ONE PERMISSION.
+#  2. ACCESS IS ENFORCED ON THE SERVER, ON ONE PERMISSION.
 #
-#  Every screen sits in the app/(fleet) route group behind FleetAccessGate,
-#  which renders the screens only when the session carries the Fleet read
-#  permission (lib/fleet/access.ts). There is no role bypass. The health route
-#  (app/api/health) is outside that group, so the probes below answer without a
-#  session - they must, or a healthy pod would never become Ready.
+#  middleware.ts refuses any request without a verified session, a live access
+#  token and the Fleet read permission (pages: sign-in or the no-access page;
+#  API: 401/403), and every data route re-checks the same rule itself. There is
+#  no role bypass. The health route (app/api/health) is excluded from the
+#  middleware, so the probes below answer without a session; they must, or a
+#  healthy pod would never become Ready.
 #
 #  ---------------------------------------------------------------------------
-#  THREE THINGS ARE NOT IN THIS FILE, AND ALL THREE EXIST IN THE CLUSTER ALREADY:
+#  THREE THINGS ARE NOT IN THIS FILE:
 #
-#   A. The namespace's docker-secret (image pull). Secrets are
-#      namespace-scoped; without it pods sit in ImagePullBackOff.
+#   A. The namespace's docker-secret (image pull), created in the cluster.
+#      Secrets are namespace-scoped; without it pods sit in ImagePullBackOff.
 #
-#   B. The Secret kss-client-web-fleet-secrets, holding nextauth-secret ONLY.
-#      It is deliberately not declared here: a checked-in Secret would be
-#      re-blanked by every `kubectl apply`. See the note at NEXTAUTH_SECRET.
+#   B. The Secret kss-client-web-fleet-secrets, holding nextauth-secret ONLY,
+#      created in the cluster. It is deliberately not declared here: a
+#      checked-in Secret would be re-blanked by every `kubectl apply`. See the
+#      note at NEXTAUTH_SECRET. No secret is needed for the Fleet service: the
+#      zone forwards the signed-in person's own token.
 #
-#   C. A NetworkPolicy. The dms file carries one that is marked do-not-apply
+#   C. A NetworkPolicy (none exists for this zone). The dms file carries one that is marked do-not-apply
 #      (its egress list omits DNS). It is NOT copied: an object known to break
 #      name resolution does not belong in a file that is applied whole.
 # =============================================================================
@@ -140,13 +145,22 @@ spec:
               key: tenants
 
         # -- Backend services -------------------------------------------------
-        # ONE: Auth, because the shared services/auth-api.ts reads it. The zone
-        # has no service of its own and calls nothing else.
+        # TWO: Auth (the shared services/auth-api.ts reads it) and the Fleet
+        # service, which the zone's own server routes call (lib/fleet/server).
         - name: AUTH_API_BASE_URL
           valueFrom:
             configMapKeyRef:
               name: kss-client-web-fleet-config
               key: auth-api-base-url
+        # The Fleet service, read ONLY server-side by the zone's data routes;
+        # the browser never calls it. Deliberately NOT `optional`: without it
+        # every data route would answer 500, so a missing key must stop the pod
+        # from starting instead.
+        - name: FLEET_API_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kss-client-web-fleet-config
+              key: fleet-api-base-url
 
         # No object-storage variables: nothing in this app uploads, and the
         # zone's Secret holds nextauth-secret only.
@@ -216,6 +230,10 @@ metadata:
   namespace: kss-client-web-fleet
 data:
   auth-api-base-url: "https://auth.api.sebaoffice.ir"
+  # The Fleet service in its own namespace: the FULL cluster name, because the
+  # bare service name resolves only inside kss-fleet-service. No port: the
+  # Service listens on 80 and forwards to the pod's 8000.
+  fleet-api-base-url: "http://kss-fleet-service-service.kss-fleet-service.svc.cluster.local"
   tenants: '{"erp.seba.ir":{"name":"SEBA","logo":"/media/app/default-logo.svg","logoDark":"/media/app/default-logo-dark.svg","logoMini":"/media/app/mini-logo.svg","favicon":"/favicon.ico","banner":"/media/images/2600x1600/1.png","bannerDark":"/media/images/2600x1600/1-dark.png","companyId":"019f317a-12ba-764f-b19b-e064e36b4be8","footer":{"brand":{"label":"SEBA","href":"https://seba.ir"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"Support","fa":"پشتیبانی","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"License","fa":"مجوز","href":""}]}},"members.sebaoffice.ir":{"name":"SEBA","logo":"/media/app/default-logo.svg","logoDark":"/media/app/default-logo-dark.svg","logoMini":"/media/app/mini-logo.svg","favicon":"/favicon.ico","banner":"/media/images/2600x1600/1.png","bannerDark":"/media/images/2600x1600/1-dark.png","companyId":"019f317a-12ba-764f-b19b-e064e36b4be8","footer":{"brand":{"label":"SEBA","href":"https://seba.ir"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"Support","fa":"پشتیبانی","href":"https://www.seba.ir/%D8%AA%D9%85%D8%A7%D8%B3-%D8%A8%D8%A7-%DA%A9%D8%A7%D9%86%D9%88%D9%86"},{"en":"License","fa":"مجوز","href":""}]}},"nerp.sajoffice.ir":{"name":"SAJ","logo":"/media/tenants/saj/logo.png","logoDark":"/media/tenants/saj/logo.png","logoMini":"/media/tenants/saj/logo.png","favicon":"/media/tenants/saj/favicon.png","banner":"/media/tenants/saj/banner.jpg","bannerDark":"/media/tenants/saj/banner.jpg","companyId":"019f0e6c-9fbc-78cf-9202-fa932a9878f7","footer":{"brand":{"label":"SAJ","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"erp.mpfoffice.ir":{"name":"MPF","logo":"/media/tenants/mpf/logo.svg","logoDark":"/media/tenants/mpf/logo-dark.svg","logoMini":"/media/tenants/mpf/logo-mini.svg","favicon":"/media/tenants/mpf/favicon.svg","banner":"/media/tenants/mpf/banner.svg","bannerDark":"/media/tenants/mpf/banner-dark.svg","companyId":"019f7a3e-1d43-7bcb-a7f3-eb97572e2e02","footer":{"brand":{"label":"MPF","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"spmoffice.ir":{"name":"SPM","logo":"/media/tenants/spm/logo.svg","logoDark":"/media/tenants/spm/logo-dark.svg","logoMini":"/media/tenants/spm/logo-mini.svg","favicon":"/media/tenants/spm/favicon.svg","banner":"/media/tenants/spm/banner.svg","bannerDark":"/media/tenants/spm/banner-dark.svg","companyId":"01a04744-68ae-7aef-b9d0-b5fb31d7a80c","footer":{"brand":{"label":"SPM","href":""},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]}},"mkoffice.ir":{"name":"MK","footer":{"brand":{"label":"مشیران کاریز","href":"https://moshirankariz.com"},"links":[{"en":"Docs","fa":"مستندات","href":""},{"en":"Purchase","fa":"خرید","href":""},{"en":"FAQ","fa":"سوالات متداول","href":""},{"en":"Support","fa":"پشتیبانی","href":""},{"en":"License","fa":"مجوز","href":""}]},"logo":"/media/tenants/mk/logo.png","logoDark":"/media/tenants/mk/logo.png","logoMini":"/media/tenants/mk/logo.png","favicon":"/media/tenants/mk/favicon.ico","banner":"/media/tenants/mk/banner.jpg","bannerDark":"/media/tenants/mk/banner.jpg","companyId":"01a07fb0-e2e7-7822-b14b-3a70278009ef"}}'
 ---
 # minAvailable 1 against replicas 2. It must stay strictly below replicas or a

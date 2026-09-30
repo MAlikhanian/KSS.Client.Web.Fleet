@@ -12,7 +12,6 @@
     "reportInfra": "Infrastructure"
   },
   "common": {
-    "mockBanner": "Sample data for design review. Every name and figure on this screen is invented.",
     "department": "Department",
     "project": "Project",
     "status": "Status",
@@ -24,39 +23,14 @@
     "noProject": "No project",
     "inactive": "Inactive",
     "agent": "Agent",
-    "total": "Total",
-    "week": "Week of {{date}}",
-    "noSourceYet": "No source yet",
+    "noAgents": "No agent matches these filters.",
+    "noSourceYet": "No data source yet",
     "noSourceHint": "Nothing records this figure yet, so no number is shown.",
-    "estimate": "Estimate",
-    "currentRoster": "Grouped by the current roster",
-    "noAgents": "No agent matches these filters."
-  },
-  "lookup": {
-    "department": {
-      "1": "Leadership",
-      "2": "Platform",
-      "3": "Product",
-      "4": "Service Desk",
-      "5": "Compliance"
-    },
-    "role": {
-      "1": "Director",
-      "2": "Advisor",
-      "3": "Chief",
-      "4": "Team Lead",
-      "5": "Engineer",
-      "6": "Specialist",
-      "7": "Analyst",
-      "8": "Assistant",
-      "9": "Auditor"
-    },
-    "project": {
-      "1": "Project Alpha",
-      "2": "Project Beta",
-      "3": "Project Gamma",
-      "4": "Project Delta"
-    }
+    "noSourceSection": "Not measured yet",
+    "loading": "Loading…",
+    "errorTitle": "Fleet data could not be loaded.",
+    "errorCode": "Error code:",
+    "retry": "Try again"
   },
   "org": {
     "title": "Organization Chart",
@@ -67,87 +41,52 @@
     "kpiActive": "Active",
     "kpiInactive": "Inactive",
     "kpiTops": "Top of a line",
+    "kpiOnline": "Online now",
     "reportsTo": "Reports to",
     "noManager": "Top of the hierarchy",
     "directReports": "{{count}} direct reports",
-    "matching": "{{count}} match the filters; the others are dimmed so the hierarchy stays whole."
+    "matching": "{{count}} match the filters; the others are dimmed so the hierarchy stays whole.",
+    "online": "Online",
+    "noPresence": "No presence data yet.",
+    "unknownDepartment": "Department not listed"
   },
   "work": {
     "title": "Agent Work",
-    "description": "Messages, tool calls and sessions per day.",
-    "kpiMessages": "Messages",
-    "kpiToolCalls": "Tool calls",
-    "kpiOnline": "Session-days online",
-    "kpiOffline": "Session-days offline",
-    "chartMessages": "Messages by kind",
-    "chartMessagesNote": "The \"other\" bucket is kept, not dropped.",
-    "chartTools": "Tool calls by tool",
-    "chartToolsNote": "Exact only when read before the session compacts its history.",
-    "chartSessions": "Sessions online and offline",
-    "kind": {
-      "inbound": "Inbound",
-      "outbound": "Outbound",
-      "internal": "Internal",
-      "other": "Other"
-    },
-    "tool": {
-      "read": "Read",
-      "edit": "Edit",
-      "search": "Search",
-      "shell": "Shell",
-      "other": "Other"
-    },
-    "online": "Online",
-    "offline": "Offline",
-    "tableTitle": "Per agent, this week",
-    "colMessages": "Messages",
-    "colTools": "Tool calls",
-    "colOnline": "Days online"
+    "description": "Messages agents sent to and received from each other, per day.",
+    "from": "From",
+    "to": "To",
+    "periodInvalid": "Choose a start date on or before the end date, covering at most {{max}} days.",
+    "kpiSent": "Messages sent",
+    "kpiReceived": "Messages received",
+    "chartDaily": "Messages per day",
+    "chartDailyNote": "Days are in UTC. Small counts are grouped by the service and shown as \"other\".",
+    "sent": "Sent",
+    "received": "Received",
+    "tableTitle": "Per agent, this period",
+    "colSent": "Sent",
+    "colReceived": "Received",
+    "otherRow": "Other (small counts, grouped)",
+    "otherFilteredNote": "Grouped small counts belong to no single agent, so they are left out while a filter is on.",
+    "telegramTitle": "Chat messages in and out",
+    "toolsTitle": "Tool calls",
+    "sessionsTitle": "Sessions online and offline"
   },
   "tokens": {
     "title": "Token Usage",
-    "description": "Tokens per day, per department and per agent.",
-    "input": "Input",
-    "output": "Output",
-    "cacheWrite": "Cache write",
-    "cacheRead": "Cache read",
-    "chartDaily": "Tokens per day",
-    "chartDailyNote": "Counted once per message.",
-    "chartDepartment": "Tokens by department",
-    "tableTitle": "Top agents this week",
-    "colTotal": "Total tokens",
-    "codexTitle": "Agents on another runtime",
-    "codexHint": "Their token counts are not verified yet, so they are not included above."
+    "description": "Tokens used per day, per department and per agent.",
+    "sourceTitle": "Token usage"
   },
   "hours": {
     "title": "Active Hours",
     "description": "Time spent working per day.",
-    "estimateBanner": "These figures are an ESTIMATE: they count the time the model was taking turns, not the time an agent was present.",
-    "kpiTotal": "Active hours (estimate)",
-    "kpiAvg": "Average per active agent per day",
-    "chartDaily": "Active hours per day (estimate)",
-    "chartDepartment": "Active hours by department (estimate)",
-    "tableTitle": "Per agent, this week (estimate)",
-    "colHours": "Hours",
-    "colAvg": "Minutes per day",
-    "hoursUnit": "h",
-    "minutesUnit": "min"
+    "sourceTitle": "Active hours"
   },
   "infra": {
     "title": "Infrastructure",
-    "description": "Capacity, releases, and the figures that have no source yet.",
-    "chartCapacity": "Capacity used",
-    "fiveHour": "5-hour window",
-    "sevenDay": "7-day window",
-    "latestAge": "Latest reading was {{min}} minutes old when taken.",
-    "capacityNote": "Each point carries the age of its reading, shown in the tooltip.",
-    "payloadAge": "Reading age (min)",
-    "chartReleases": "Releases per service this week",
-    "releasesNote": "Counted only for releases made through the standard deploy script.",
-    "placeholders": "Not measured yet",
+    "description": "Capacity, releases and service health.",
+    "capacityTitle": "Capacity used",
+    "releasesTitle": "Releases per service",
     "mcpTitle": "Connection failures",
-    "rollbacksTitle": "Rollbacks",
-    "tasksTitle": "Tasks opened and closed",
-    "promisesTitle": "Promises due and kept"
+    "rollbacksTitle": "Rollbacks"
   }
 }

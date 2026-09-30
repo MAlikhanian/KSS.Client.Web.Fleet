@@ -1,19 +1,40 @@
 'use client';
 
+import { createContext, useContext } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { OrgNode } from '@/lib/fleet/queries';
-import type { Agent } from '@/lib/fleet/types';
+import { lookupName, type OrgNode } from '@/lib/fleet/org';
+import type { Agent, OrgResponse } from '@/lib/fleet/web-contract';
 import { useFleet } from './use-fleet';
 
-// One accent per department, so a department reads at a glance across the tree.
-const DEPT_ACCENT: Record<number, string> = {
-  1: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  2: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-  3: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  4: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  5: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
-};
+/**
+ * What every card needs besides its own agent: the lookup names from the org
+ * response, and which agents are online. `online` is null when the service has
+ * no presence data at all, in which case NO card shows a presence state, so
+ * "no data" never reads as "everyone offline".
+ */
+export interface OrgContextValue {
+  org: OrgResponse;
+  online: Set<string> | null;
+}
+
+export const OrgContext = createContext<OrgContextValue | null>(null);
+
+function useOrgContext(): OrgContextValue {
+  const ctx = useContext(OrgContext);
+  if (!ctx) throw new Error('OrgContext is missing');
+  return ctx;
+}
+
+// One accent per department id, cycling, so a department reads at a glance.
+const ACCENTS = [
+  'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+  'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+];
 
 export function AgentCard({
   agent,
@@ -26,8 +47,13 @@ export function AgentCard({
   reportsCount?: number;
   className?: string;
 }) {
-  const { t, num, dept, role, project, name } = useFleet();
+  const { t, num, name } = useFleet();
+  const { org, online } = useOrgContext();
   const initials = `${agent.firstName[0] ?? ''}${agent.lastName[0] ?? ''}`;
+  const role = lookupName(org.roles, agent.roleId);
+  const dept = lookupName(org.departments, agent.departmentId);
+  const project = agent.projectId === null ? t('common.noProject') : lookupName(org.projects, agent.projectId);
+  const isOnline = online?.has(agent.agentId) ?? false;
 
   return (
     <div
@@ -42,20 +68,28 @@ export function AgentCard({
       <span
         aria-hidden
         className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-          DEPT_ACCENT[agent.departmentId],
+          'relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+          ACCENTS[Math.abs(agent.departmentId) % ACCENTS.length],
           !agent.isActive && 'grayscale',
         )}
       >
         {initials}
+        {isOnline ? (
+          <span className="absolute -bottom-0.5 -end-0.5 size-3 rounded-full border-2 border-card bg-emerald-500" />
+        ) : null}
       </span>
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-sm font-medium text-foreground">{name(agent)}</span>
         <span className="truncate text-xs text-muted-foreground">
-          {role(agent.roleId)} · {dept(agent.departmentId)}
+          {[role, dept].filter(Boolean).join(' · ')}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{project(agent.projectId)}</span>
+        <span className="truncate text-xs text-muted-foreground">{project}</span>
         <div className="flex flex-wrap gap-1 pt-0.5">
+          {isOnline ? (
+            <Badge variant="success" appearance="light" size="xs">
+              {t('org.online')}
+            </Badge>
+          ) : null}
           {!agent.isActive ? (
             <Badge variant="secondary" appearance="light" size="xs">
               {t('common.inactive')}
@@ -74,16 +108,10 @@ export function AgentCard({
 
 /**
  * One subtree. Children that manage people are laid out side by side under a
- * connector; a list of people who manage nobody is stacked vertically, which
- * keeps a wide team from pushing the chart off the screen.
+ * connector; people who manage nobody are stacked vertically, which keeps a
+ * wide team from pushing the chart off the screen.
  */
-export function OrgSubtree({
-  node,
-  isMatch,
-}: {
-  node: OrgNode;
-  isMatch: (a: Agent) => boolean;
-}) {
+export function OrgSubtree({ node, isMatch }: { node: OrgNode; isMatch: (a: Agent) => boolean }) {
   const kids = node.children;
   const branch = kids.filter((k) => k.children.length > 0);
   const leaves = kids.filter((k) => k.children.length === 0);
@@ -102,9 +130,7 @@ export function OrgSubtree({
         </div>
       ) : null}
 
-      {branch.length > 0 && leaves.length > 0 ? (
-        <span aria-hidden className="h-5 w-px bg-border" />
-      ) : null}
+      {branch.length > 0 && leaves.length > 0 ? <span aria-hidden className="h-5 w-px bg-border" /> : null}
 
       {branch.length > 0 ? (
         <div className="flex items-start">

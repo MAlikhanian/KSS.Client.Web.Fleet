@@ -127,8 +127,12 @@ const authOptions: NextAuthOptions = {
         session.user.roles = token.roles ?? [];
         session.user.permissions = token.permissions ?? [];
       }
-      // Store accessToken and tokenExpires in session for API calls
-      session.accessToken = token.accessToken;
+      // The Auth access token is deliberately NOT copied into the session: this
+      // zone's server routes read it from the verified JWT (getToken) and
+      // forward it server-to-server, and nothing in the zone reads it from the
+      // session. Note the limit of this change: the BROWSER's session JSON is
+      // served by the Shell (/api/auth/session), whose own callback decides
+      // what the client receives. This only narrows the zone's server session.
       session.tokenExpires = token.tokenExpires;
       return session;
     },

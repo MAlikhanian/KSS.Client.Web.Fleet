@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Agent } from '@/lib/fleet/types';
+import type { Agent } from '@/lib/fleet/web-contract';
 import { useFleet } from './use-fleet';
 
 export interface AgentColumn<R> {
@@ -17,17 +17,25 @@ export interface AgentColumn<R> {
   value: (row: R) => string;
 }
 
-/** A read-only per-agent table: name, department, then the given columns. */
+/**
+ * A read-only per-agent table: name, department, then the given columns.
+ * `footer` is an optional extra row (e.g. the service's grouped "other" counts),
+ * rendered as served.
+ */
 export function AgentTable<R extends { agent: Agent }>({
   rows,
   columns,
+  departmentName,
+  footer,
 }: {
   rows: R[];
   columns: AgentColumn<R>[];
+  departmentName: (id: number) => string;
+  footer?: { label: string; values: string[] } | null;
 }) {
-  const { t, dept, name } = useFleet();
+  const { t, name } = useFleet();
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !footer) {
     return <p className="py-6 text-center text-sm text-muted-foreground">{t('common.noAgents')}</p>;
   }
 
@@ -54,7 +62,7 @@ export function AgentTable<R extends { agent: Agent }>({
                   <span className="ms-2 text-xs text-muted-foreground">({t('common.inactive')})</span>
                 ) : null}
               </TableCell>
-              <TableCell>{dept(row.agent.departmentId)}</TableCell>
+              <TableCell>{departmentName(row.agent.departmentId)}</TableCell>
               {columns.map((c) => (
                 <TableCell key={c.key} className="text-end tabular-nums">
                   {c.value(row)}
@@ -62,6 +70,18 @@ export function AgentTable<R extends { agent: Agent }>({
               ))}
             </TableRow>
           ))}
+          {footer ? (
+            <TableRow data-testid="fleet-other-row" className="bg-muted/40">
+              <TableCell className="font-medium" colSpan={2}>
+                {footer.label}
+              </TableCell>
+              {footer.values.map((v, i) => (
+                <TableCell key={i} className="text-end tabular-nums">
+                  {v}
+                </TableCell>
+              ))}
+            </TableRow>
+          ) : null}
         </TableBody>
       </Table>
     </div>
