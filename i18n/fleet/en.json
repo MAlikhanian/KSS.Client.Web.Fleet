@@ -30,29 +30,26 @@
     "loading": "Loading…",
     "errorTitle": "Fleet data could not be loaded.",
     "errorCode": "Error code:",
-    "retry": "Try again"
+    "retry": "Try again",
+    "noSourceScreenTitle": "There is no data source for this report yet",
+    "noSourceScreenBody": "Nothing records these figures yet anywhere this page can read. Until a source is connected no number is shown: an invented figure on a live screen would read as real.",
+    "noSourceNote": "This page fills in as soon as the source is connected."
   },
   "org": {
     "title": "Organization Chart",
-    "description": "Who reports to whom, grouped by department. Read-only.",
-    "viewHierarchy": "Hierarchy",
-    "viewDepartments": "By department",
-    "kpiTotal": "Agents",
-    "kpiActive": "Active",
-    "kpiInactive": "Inactive",
-    "kpiTops": "Top of a line",
-    "kpiOnline": "Online now",
+    "description": "Who reports to whom, coloured by department. Read-only.",
     "reportsTo": "Reports to",
-    "noManager": "Top of the hierarchy",
-    "directReports": "{{count}} direct reports",
     "matching": "{{count}} match the filters; the others are dimmed so the hierarchy stays whole.",
     "online": "Online",
     "noPresence": "No presence data yet.",
-    "unknownDepartment": "Department not listed"
+    "unknownDepartment": "Department not listed",
+    "agentsCount": "{{count}} agents",
+    "onlineCount": "{{count}} online",
+    "reportsToName": "Reports to {{name}}"
   },
   "work": {
     "title": "Agent Work",
-    "description": "Messages agents sent to and received from each other, per day.",
+    "description": "Messages agents sent to and received from each other, by department and per day.",
     "from": "From",
     "to": "To",
     "periodInvalid": "Choose a start date on or before the end date, covering at most {{max}} days.",
@@ -69,17 +66,29 @@
     "otherFilteredNote": "Grouped small counts belong to no single agent, so they are left out while a filter is on.",
     "telegramTitle": "Chat messages in and out",
     "toolsTitle": "Tool calls",
-    "sessionsTitle": "Sessions online and offline"
+    "sessionsTitle": "Sessions online and offline",
+    "wholeFleet": "Whole fleet",
+    "byDepartment": "By department",
+    "deptSummary": "{{count}} active agents · {{share}}% of all",
+    "andMore": "and {{count}} more",
+    "otherTitle": "Other",
+    "otherBody": "Small counts, grouped as the service returns them. They belong to no single agent or department."
   },
   "tokens": {
     "title": "Token Usage",
     "description": "Tokens used per day, per department and per agent.",
-    "sourceTitle": "Token usage"
+    "sourceTitle": "Token usage",
+    "comingDaily": "Input, output and cache tokens per day",
+    "comingDept": "Usage by department",
+    "comingTop": "Top agents in the chosen period"
   },
   "hours": {
     "title": "Active Hours",
     "description": "Time spent working per day.",
-    "sourceTitle": "Active hours"
+    "sourceTitle": "Active hours",
+    "comingDaily": "Active time per agent per day",
+    "comingDept": "Hours by department",
+    "comingTrend": "The busiest hours of the day"
   },
   "infra": {
     "title": "Infrastructure",

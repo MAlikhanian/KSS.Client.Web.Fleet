@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode } from 'react';
-import { CircleOff, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { CircleDashed, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,19 +99,16 @@ export function ErrorState({ code, onRetry }: { code: string; onRetry?: () => vo
  * A metric with no source. It shows NO number, on purpose: a zero or a dash
  * would read as a measurement, and nothing records this figure yet.
  */
-export function NoSourceCard({ title, hint }: { title: string; hint?: string }) {
+export function NoSourceCard({ title }: { title: string }) {
   const { t } = useFleet();
   return (
-    <Card data-testid="fleet-no-source" className="border-dashed">
-      <CardContent className="flex flex-col gap-2 py-4">
-        <div className="flex items-center gap-2">
-          <CircleOff className="size-4 text-muted-foreground" />
-          <span className="font-medium text-foreground">{title}</span>
+    <Card data-testid="fleet-no-source" className="border-dashed shadow-none">
+      <CardContent className="flex items-center gap-3 py-3.5">
+        <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm text-foreground">{title}</span>
+          <span className="truncate text-xs text-muted-foreground">{t('common.noSourceYet')}</span>
         </div>
-        <Badge variant="secondary" appearance="light" size="sm" className="w-fit">
-          {t('common.noSourceYet')}
-        </Badge>
-        <p className="text-xs text-muted-foreground">{hint ?? t('common.noSourceHint')}</p>
       </CardContent>
     </Card>
   );

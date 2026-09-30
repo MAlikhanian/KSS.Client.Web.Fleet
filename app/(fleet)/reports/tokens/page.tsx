@@ -1,7 +1,7 @@
 'use client';
 
 import { Container } from '@/components/common/container';
-import { NoSourceCard } from '../../_components/cards';
+import { NoSourceScreen } from '../../_components/fleet-ui';
 import { ScreenHeader } from '../../_components/screen-header';
 import { useFleet } from '../../_components/use-fleet';
 
@@ -15,7 +15,7 @@ export default function TokensReportPage() {
     <Container>
       <div className="flex flex-col gap-5">
         <ScreenHeader title={t('tokens.title')} description={t('tokens.description')} />
-        <NoSourceCard title={t('tokens.sourceTitle')} />
+        <NoSourceScreen coming={[t('tokens.comingDaily'), t('tokens.comingDept'), t('tokens.comingTop')]} />
       </div>
     </Container>
   );
