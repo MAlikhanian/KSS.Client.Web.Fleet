@@ -32,8 +32,8 @@ export function deptStyle(departments: Lookup[], id: number): DeptStyle {
  * Initials in a circle. `online` is only ever true when the service reported
  * presence data; with no data the caller passes nothing and no dot is drawn.
  */
-export function Avatar({ agent, size = 'md', online }: { agent: Agent; size?: 'sm' | 'md' | 'lg'; online?: boolean }) {
-  const s = size === 'sm' ? 'size-7 text-[10px]' : size === 'lg' ? 'size-12 text-sm' : 'size-9 text-xs';
+export function Avatar({ agent, size = 'md', online }: { agent: Agent; size?: 'xs' | 'sm' | 'md' | 'lg'; online?: boolean }) {
+  const s = size === 'xs' ? 'size-6 text-[9px] ring-1' : size === 'sm' ? 'size-7 text-[10px]' : size === 'lg' ? 'size-12 text-sm' : 'size-9 text-xs';
   return (
     <span
       aria-hidden

@@ -45,7 +45,8 @@
     "unknownDepartment": "واحد ثبت‌نشده",
     "agentsCount": "{{count}} عامل",
     "onlineCount": "{{count}} آنلاین",
-    "reportsToName": "گزارش به {{name}}"
+    "reportsToName": "گزارش به {{name}}",
+    "leadership": "رهبری"
   },
   "work": {
     "title": "کارکرد عامل‌ها",
@@ -68,11 +69,9 @@
     "toolsTitle": "فراخوانی ابزار",
     "sessionsTitle": "نشست‌های آنلاین و آفلاین",
     "wholeFleet": "کل ناوگان",
-    "byDepartment": "به تفکیک واحد",
-    "deptSummary": "{{count}} عامل فعال · {{share}}٪ از کل",
-    "andMore": "و {{count}} عامل دیگر",
     "otherTitle": "سایر",
-    "otherBody": "تعدادهای کوچک، همان‌طور که سرویس گروه‌بندی کرده است. به هیچ عامل یا واحد مشخصی تعلق ندارند."
+    "otherBody": "تعدادهای کوچک، همان‌طور که سرویس گروه‌بندی کرده است. به هیچ عامل یا واحد مشخصی تعلق ندارند.",
+    "byTeam": "به تفکیک تیم"
   },
   "tokens": {
     "title": "مصرف توکن",
@@ -97,5 +96,34 @@
     "releasesTitle": "انتشار هر سرویس",
     "mcpTitle": "خطاهای اتصال",
     "rollbacksTitle": "بازگشت نسخه"
+  },
+  "roleNames": {
+    "CEO": "مدیرعامل",
+    "CEO Advisor": "مشاور مدیرعامل",
+    "CTO": "مدیر ارشد فناوری",
+    "COO": "مدیر ارشد عملیات",
+    "Agent": "عامل",
+    "Assistant": "دستیار",
+    "Contracts": "کارشناس قراردادها",
+    "Secretary": "دبیر",
+    "Scheduler": "برنامه‌ریز",
+    "Support": "پشتیبانی",
+    "Tech Lead": "سرپرست فنی",
+    "DBA": "مدیر پایگاه داده",
+    "Backend": "بک‌اند",
+    "Frontend": "فرانت‌اند"
+  },
+  "departmentNames": {
+    "Executive": "مدیریت اجرایی",
+    "Advisory": "مشاوره",
+    "Engineering": "مهندسی",
+    "Board Office": "دفتر هیئت‌مدیره",
+    "Founder's Office": "دفتر بنیان‌گذار",
+    "Executive Office": "دفتر اجرایی",
+    "Legal": "حقوقی",
+    "Secretariat": "دبیرخانه",
+    "Operations": "عملیات",
+    "Customer Support": "پشتیبانی مشتریان",
+    "Unassigned": "بدون واحد"
   }
 }

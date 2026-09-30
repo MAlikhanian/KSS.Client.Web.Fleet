@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Info } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Container } from '@/components/common/container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,13 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { daysBetween, isFiltered, lookupName, matchesFilter, sumBy, utcDay, type AgentFilter } from '@/lib/fleet/org';
 import { errorCode, useActivity, useOrg } from '@/lib/fleet/queries';
 import { MAX_ACTIVITY_SPAN_DAYS, type ActivityRow } from '@/lib/fleet/web-contract';
 import { AgentFilters } from '../../_components/agent-filters';
 import { AgentTable } from '../../_components/agent-table';
 import { ErrorState, LoadingState, NoSourceCard } from '../../_components/cards';
-import { Avatar, MiniBars, deptStyle } from '../../_components/fleet-ui';
+import { WorkBoxes, type AgentWork } from '../../_components/work-boxes';
 import { ScreenHeader } from '../../_components/screen-header';
 import { useFleet } from '../../_components/use-fleet';
 
@@ -63,7 +62,7 @@ function Period({
  * filter is on it cannot be attributed, so it is left out and the screen says so.
  */
 export default function WorkReportPage() {
-  const { t, num, day } = useFleet();
+  const { t, num, day, departmentName } = useFleet();
   const [filter, setFilter] = useState<AgentFilter>({});
   const [from, setFrom] = useState(() => utcDay(6));
   const [to, setTo] = useState(() => utcDay(0));
@@ -108,37 +107,19 @@ export default function WorkReportPage() {
       })
       .sort((a, b) => b.sent + b.received - (a.sent + a.received));
 
-    // Departments in the service's order, then any department id not in its list.
-    const deptIds = [
-      ...(org.data?.departments ?? []).map((d) => d.id),
-      ...Array.from(new Set(perAgent.map((p) => p.agent.departmentId))).filter(
-        (id) => !(org.data?.departments ?? []).some((d) => d.id === id),
-      ),
-    ];
-    const perDept = deptIds
-      .map((id) => {
-        const members = perAgent.filter((p) => p.agent.departmentId === id && p.sent + p.received > 0);
-        return {
-          id,
-          members,
-          sent: sumBy(members, (m) => m.sent),
-          received: sumBy(members, (m) => m.received),
-          daily: days.map((_, i) => sumBy(members, (m) => m.daily[i])),
-        };
-      })
-      .filter((d) => d.members.length)
-      .sort((a, b) => b.sent + b.received - (a.sent + a.received));
-
     const other = {
       sent: sumBy(otherRows.filter((r) => r.direction === 'out'), (r) => r.count),
       received: sumBy(otherRows.filter((r) => r.direction === 'in'), (r) => r.count),
       present: otherRows.length > 0,
     };
 
+    const work = new Map<string, AgentWork>(perAgent.map((p) => [p.agent.agentId, { sent: p.sent, received: p.received, daily: p.daily }]));
+
     return {
       perDay,
       perAgent,
-      perDept,
+      work,
+      days: days.length,
       other,
       totalSent: sumBy(counted.filter((r) => r.direction === 'out'), (r) => r.count),
       totalReceived: sumBy(counted.filter((r) => r.direction === 'in'), (r) => r.count),
@@ -153,7 +134,6 @@ export default function WorkReportPage() {
 
   const failed = org.isError ? org.error : activity.isError ? activity.error : null;
   const loading = org.isPending || (periodValid && activity.isPending);
-  const total = Math.max(1, model.totalSent + model.totalReceived);
 
   return (
     <Container>
@@ -215,7 +195,7 @@ export default function WorkReportPage() {
               <CardContent className="flex flex-col gap-3 py-4">
                 {/* contain:inline-size: the chart takes its width from the page and never widens it. */}
                 <div className="w-full min-w-0 [contain:inline-size]">
-                  <ChartContainer config={config} className="h-60 w-full">
+                  <ChartContainer config={config} className="h-44 w-full">
                     <BarChart data={model.perDay} barGap={4}>
                       <CartesianGrid vertical={false} />
                       <XAxis dataKey="day" tickFormatter={day} tickLine={false} axisLine={false} interval="preserveStartEnd" />
@@ -237,84 +217,30 @@ export default function WorkReportPage() {
             ) : null}
 
             <div className="flex flex-col gap-3">
-              <h2 className="text-base font-semibold text-foreground">{t('work.byDepartment')}</h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="fleet-work-departments">
-                {model.perDept.map((d) => {
-                  const s = deptStyle(org.data.departments, d.id);
-                  const share = Math.round(((d.sent + d.received) / total) * 100);
-                  return (
-                    <Card key={d.id} className="overflow-hidden">
-                      <div className={cn('h-1', s.bar)} />
-                      <CardContent className="flex flex-col gap-4 p-5">
-                        <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="flex min-w-0 flex-col">
-                            <span className="truncate text-base font-semibold text-foreground">
-                              {lookupName(org.data.departments, d.id) || t('org.unknownDepartment')}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {t('work.deptSummary', { count: num(d.members.length), share: num(share) })}
-                            </span>
-                          </div>
-                          <MiniBars values={d.daily} bar={s.bar} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-lg bg-muted/50 p-3">
-                            <div className="text-xs text-muted-foreground">{t('work.sent')}</div>
-                            <div className="text-xl font-semibold tabular-nums">{num(d.sent)}</div>
-                          </div>
-                          <div className="rounded-lg bg-muted/50 p-3">
-                            <div className="text-xs text-muted-foreground">{t('work.received')}</div>
-                            <div className="text-xl font-semibold tabular-nums">{num(d.received)}</div>
-                          </div>
-                        </div>
-                        <ul className="flex flex-col gap-2">
-                          {d.members.slice(0, 3).map((r) => (
-                            <li key={r.agent.agentId} className="flex min-w-0 items-center gap-2.5">
-                              <Avatar agent={r.agent} size="sm" />
-                              <span className="min-w-0 flex-1 truncate text-sm">
-                                {r.agent.firstName} {r.agent.lastName}
-                              </span>
-                              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{num(r.sent + r.received)}</span>
-                            </li>
-                          ))}
-                          {d.members.length > 3 ? (
-                            <li className="text-xs text-muted-foreground">{t('work.andMore', { count: num(d.members.length - 3) })}</li>
-                          ) : null}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-                {model.other.present ? (
-                  <Card className="border-dashed shadow-none" data-testid="fleet-other-card">
-                    <CardContent className="flex h-full flex-col justify-center gap-2 p-5 text-sm text-muted-foreground">
-                      <span className="inline-flex items-center gap-2 font-medium text-foreground">
-                        <Info className="size-4 shrink-0" />
-                        {t('work.otherTitle')}
-                      </span>
-                      <span>{t('work.otherBody')}</span>
-                      <span className="tabular-nums text-foreground">
-                        {t('work.sent')} {num(model.other.sent)} · {t('work.received')} {num(model.other.received)}
-                      </span>
-                    </CardContent>
-                  </Card>
-                ) : null}
-              </div>
-              {model.perDept.length === 0 && !model.other.present ? (
-                <p className="text-sm text-muted-foreground">{t('common.noAgents')}</p>
-              ) : null}
+              <h2 className="text-base font-semibold text-foreground">{t('work.byTeam')}</h2>
+              <WorkBoxes
+                org={org.data}
+                work={model.work}
+                included={(a) => matchesFilter(a, filter)}
+                days={model.days}
+                other={model.other}
+              />
             </div>
 
+            {/* The same numbers as the boxes, as one table. Closed by default so the
+                page stays dense; a native <details>, so it needs no script to open. */}
             <Card>
-              <CardHeader>
-                <CardTitle>{t('work.tableTitle')}</CardTitle>
-              </CardHeader>
+              <details className="group" data-testid="fleet-agent-table">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-3.5 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+                  {t('work.tableTitle')}
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
               {/* contain:inline-size: on a phone the table scrolls inside its own
                   container (AgentTable's overflow-x-auto) and never widens the page. */}
-              <CardContent className="min-w-0 [contain:inline-size]">
+              <CardContent className="min-w-0 border-t pt-4 [contain:inline-size]">
                 <AgentTable
                   rows={model.perAgent}
-                  departmentName={(id) => lookupName(org.data?.departments, id)}
+                  departmentName={(id) => departmentName(lookupName(org.data?.departments, id))}
                   columns={[
                     { key: 's', header: t('work.colSent'), value: (r) => num(r.sent) },
                     { key: 'r', header: t('work.colReceived'), value: (r) => num(r.received) },
@@ -326,6 +252,7 @@ export default function WorkReportPage() {
                   }
                 />
               </CardContent>
+              </details>
             </Card>
           </>
         ) : null}

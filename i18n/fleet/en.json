@@ -45,7 +45,8 @@
     "unknownDepartment": "Department not listed",
     "agentsCount": "{{count}} agents",
     "onlineCount": "{{count}} online",
-    "reportsToName": "Reports to {{name}}"
+    "reportsToName": "Reports to {{name}}",
+    "leadership": "Leadership"
   },
   "work": {
     "title": "Agent Work",
@@ -68,11 +69,9 @@
     "toolsTitle": "Tool calls",
     "sessionsTitle": "Sessions online and offline",
     "wholeFleet": "Whole fleet",
-    "byDepartment": "By department",
-    "deptSummary": "{{count}} active agents · {{share}}% of all",
-    "andMore": "and {{count}} more",
     "otherTitle": "Other",
-    "otherBody": "Small counts, grouped as the service returns them. They belong to no single agent or department."
+    "otherBody": "Small counts, grouped as the service returns them. They belong to no single agent or department.",
+    "byTeam": "By team"
   },
   "tokens": {
     "title": "Token Usage",
@@ -97,5 +96,34 @@
     "releasesTitle": "Releases per service",
     "mcpTitle": "Connection failures",
     "rollbacksTitle": "Rollbacks"
+  },
+  "roleNames": {
+    "CEO": "CEO",
+    "CEO Advisor": "CEO Advisor",
+    "CTO": "CTO",
+    "COO": "COO",
+    "Agent": "Agent",
+    "Assistant": "Assistant",
+    "Contracts": "Contracts",
+    "Secretary": "Secretary",
+    "Scheduler": "Scheduler",
+    "Support": "Support",
+    "Tech Lead": "Tech Lead",
+    "DBA": "DBA",
+    "Backend": "Backend",
+    "Frontend": "Frontend"
+  },
+  "departmentNames": {
+    "Executive": "Executive",
+    "Advisory": "Advisory",
+    "Engineering": "Engineering",
+    "Board Office": "Board Office",
+    "Founder's Office": "Founder's Office",
+    "Executive Office": "Executive Office",
+    "Legal": "Legal",
+    "Secretariat": "Secretariat",
+    "Operations": "Operations",
+    "Customer Support": "Customer Support",
+    "Unassigned": "Unassigned"
   }
 }
